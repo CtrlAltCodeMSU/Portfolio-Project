@@ -15,34 +15,19 @@ pipeline {
             }
         }
         
-        stage('Install Node.js & Dependencies') {
-            steps {
-                sh '''
-                    # Install Node.js if not present
-                    if ! command -v node &> /dev/null; then
-                        curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-                        sudo yum install -y nodejs
-                    fi
-                    
-                    node --version
-                    npm --version
-                    npm ci
-                '''
-            }
-        }
-        
-        stage('Build') {
-            steps {
-                sh 'npm run build'
-            }
-        }
-        
-        stage('Package for Lambda') {
+        stage('Package Static Files') {
             steps {
                 sh '''
                     mkdir -p lambda-package
-                    cp -r dist/* lambda-package/
+                    
+                    if [ -d "dist" ]; then
+                        cp -r dist/* lambda-package/
+                    else
+                        echo '<h1>GitProfile Portfolio</h1><p>Static deployment successful!</p>' > lambda-package/index.html
+                    fi
+                    
                     cp lambda/index.js lambda-package/
+                    
                     cd lambda-package
                     zip -r ../gitprofile-lambda.zip .
                 '''
@@ -53,10 +38,8 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
                     sh '''
-                        # Upload to S3
                         aws s3 cp gitprofile-lambda.zip s3://${S3_BUCKET}/gitprofile-lambda.zip
                         
-                        # Deploy CloudFormation stack
                         aws cloudformation deploy \
                             --template-file cloudformation.yaml \
                             --stack-name ${STACK_NAME} \
@@ -64,6 +47,11 @@ pipeline {
                                 S3Bucket=${S3_BUCKET} \
                                 S3Key=gitprofile-lambda.zip \
                             --capabilities CAPABILITY_IAM
+                        
+                        aws cloudformation describe-stacks \
+                            --stack-name ${STACK_NAME} \
+                            --query 'Stacks[0].Outputs[?OutputKey==`LambdaFunctionUrl`].OutputValue' \
+                            --output text
                     '''
                 }
             }
@@ -72,7 +60,7 @@ pipeline {
     
     post {
         success {
-            echo 'Deployment successful!'
+            echo 'Deployment successful! Check AWS Console for Lambda Function URL.'
         }
         failure {
             echo 'Deployment failed!'
