@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    tools {
-        nodejs 'NodeJS-18'
-    }
-    
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
         AWS_CREDENTIALS_ID = 'aws-credentials'
@@ -21,7 +17,11 @@ pipeline {
         
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci'
+                sh '''
+                    node --version
+                    npm --version
+                    npm ci
+                '''
             }
         }
         
