@@ -15,9 +15,15 @@ pipeline {
             }
         }
         
-        stage('Install Dependencies') {
+        stage('Install Node.js & Dependencies') {
             steps {
                 sh '''
+                    # Install Node.js if not present
+                    if ! command -v node &> /dev/null; then
+                        curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+                        sudo yum install -y nodejs
+                    fi
+                    
                     node --version
                     npm --version
                     npm ci
