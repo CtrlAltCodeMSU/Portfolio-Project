@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    tools {
-        nodejs 'NodeJS-18'
-    }
-    
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
         AWS_CREDENTIALS_ID = 'aws-credentials'
@@ -21,7 +17,11 @@ pipeline {
         
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci'
+                sh '''
+                    node --version
+                    npm --version
+                    npm ci
+                '''
             }
         }
         
@@ -47,10 +47,8 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
                     sh '''
-                        # Upload to S3
                         aws s3 cp gitprofile-lambda.zip s3://${S3_BUCKET}/gitprofile-lambda.zip
                         
-                        # Deploy CloudFormation stack
                         aws cloudformation deploy \
                             --template-file cloudformation.yaml \
                             --stack-name ${STACK_NAME} \
